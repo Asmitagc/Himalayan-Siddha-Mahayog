@@ -17,12 +17,22 @@ class HomeController extends ChangeNotifier {
       id: 'course_01',
       title: 'New course: Pranayam',
       subtitle: 'Breath practice for begineers',
+      mediaPath: 'assets/images/pranayam.png',
+    ),
+
+    CourseModel(
+      id: 'video_01',
+      title: 'Himalayan Siddha Mahayog',
+      subtitle: 'Watch our introduction',
+      mediaPath: 'assets/videos/pkras.mp4',
+      isVideo: true,
     ),
 
     CourseModel(
       id: 'course_02',
       title: 'Meditation',
       subtitle: 'Discover your inner silence',
+      mediaPath: 'assets/images/pranayam.png',
     ),
   ];
   List<CourseModel> get courses => List.unmodifiable(_courses);
