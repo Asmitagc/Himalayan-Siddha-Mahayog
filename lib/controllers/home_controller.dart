@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 class HomeController extends ChangeNotifier {
   UserModel _user = UserModel(
     id: 'user_001',
-    name: 'Asmita',
+    name: 'Asmita GC',
     profileImageUrl: null,
     unreadNotifications: 3,
   );

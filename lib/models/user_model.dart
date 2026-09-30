@@ -12,10 +12,12 @@ class UserModel {
   });
 
   String get initials {
-    final nameParts = name.trim().split('');
+    final nameParts = name.trim().split(RegExp(r'\s+'));
+
     if (nameParts.length == 1) {
-      return nameParts[0].isEmpty ? nameParts[0][0].toUpperCase() : '';
+      return nameParts[0][0].toUpperCase();
     }
+
     return (nameParts.first[0] + nameParts.last[0]).toUpperCase();
   }
 }
