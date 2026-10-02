@@ -11,7 +11,7 @@ class BannerModel {
   final int displayOrder;
   final int status;
 
-  BannerModel({
+  const BannerModel({
     required this.id,
     required this.title,
     this.description,
@@ -28,17 +28,31 @@ class BannerModel {
   factory BannerModel.fromJson(Map<String, dynamic> json) {
     return BannerModel(
       id: _toInt(json['id']),
-      title: json['title']?.toString() ?? '',
-      description: json['description']?.toString(),
-      sliderFile: json['slider_file']?.toString(),
-      videoFile: json['video_file']?.toString(),
-      sliderType: json['slider_type']?.toString() ?? '',
-      buttonLabel: json['button_label']?.toString(),
-      buttonNavigation: json['button_navigation']?.toString(),
-      target: json['banner_target']?.toString() ?? '',
+      title: json['title']?.toString().trim() ?? '',
+      description: _toStringOrNull(json['description']),
+      sliderFile: _toStringOrNull(json['slider_file']),
+      videoFile: _toStringOrNull(json['video_file']),
+      sliderType: json['slider_type']?.toString().trim().toLowerCase() ?? '',
+      buttonLabel: _toStringOrNull(json['button_label']),
+      buttonNavigation: _toStringOrNull(json['button_navigation']),
+      target: json['banner_target']?.toString().trim().toLowerCase() ?? '',
       displayOrder: _toInt(json['display_order']),
       status: _toInt(json['status']),
     );
+  }
+
+  static String? _toStringOrNull(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+
+    final text = value.toString().trim();
+
+    if (text.isEmpty || text.toLowerCase() == 'null') {
+      return null;
+    }
+
+    return text;
   }
 
   static int _toInt(dynamic value) {
@@ -54,10 +68,6 @@ class BannerModel {
       return value.toInt();
     }
 
-    if (value is String) {
-      return int.tryParse(value) ?? 0;
-    }
-
-    return 0;
+    return int.tryParse(value.toString()) ?? 0;
   }
 }

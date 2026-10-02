@@ -22,6 +22,8 @@ class CourseCard extends StatefulWidget {
 class _CourseCardState extends State<CourseCard> {
   VideoPlayerController? _videoController;
 
+  bool _videoError = false;
+
   @override
   void initState() {
     super.initState();
@@ -30,23 +32,18 @@ class _CourseCardState extends State<CourseCard> {
   }
 
   Future<void> _initializeVideo() async {
-    // Only initialize video banners.
     if (widget.banner.sliderType != 'video') {
       return;
     }
 
     final videoUrl = widget.banner.videoFile;
 
-    // Your API currently has video_file = null
-    // for the video banner.
     if (videoUrl == null || videoUrl.isEmpty) {
       return;
     }
 
     try {
-      final controller = VideoPlayerController.networkUrl(
-        Uri.parse(videoUrl),
-      );
+      final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
 
       _videoController = controller;
 
@@ -57,16 +54,23 @@ class _CourseCardState extends State<CourseCard> {
         return;
       }
 
-      controller.setLooping(true);
+      await controller.setLooping(true);
 
-      // Video should play ONLY if this card is currently active.
       if (widget.isActive) {
-        controller.play();
+        await controller.play();
       }
 
       setState(() {});
     } catch (e) {
       debugPrint('Video initialization error: $e');
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _videoError = true;
+      });
     }
   }
 
@@ -76,17 +80,16 @@ class _CourseCardState extends State<CourseCard> {
 
     final videoController = _videoController;
 
-    if (videoController == null ||
-        !videoController.value.isInitialized) {
+    if (videoController == null || !videoController.value.isInitialized) {
       return;
     }
 
-    // Card became active.
+    // Became active.
     if (widget.isActive && !oldWidget.isActive) {
       videoController.play();
     }
 
-    // Card became inactive.
+    // Became inactive.
     if (!widget.isActive && oldWidget.isActive) {
       videoController.pause();
     }
@@ -101,169 +104,188 @@ class _CourseCardState extends State<CourseCard> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.banner.sliderType == 'video') {
+    final type = widget.banner.sliderType.toLowerCase();
+
+    if (type == 'video') {
       return _buildVideoCard();
     }
 
     return _buildImageCard();
   }
 
-  // ---------------------------------------------------------------------------
-  // IMAGE BANNER
-  // ---------------------------------------------------------------------------
-
   Widget _buildImageCard() {
     final imageUrl = widget.banner.sliderFile;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        if (imageUrl != null && imageUrl.isNotEmpty)
-          Image.network(
-            imageUrl,
-            fit: BoxFit.cover,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
 
-            loadingBuilder: (
-              context,
-              child,
-              loadingProgress,
-            ) {
-              if (loadingProgress == null) {
-                return child;
-              }
+      child: Stack(
+        fit: StackFit.expand,
 
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
-            },
+        children: [
+          if (imageUrl != null && imageUrl.isNotEmpty)
+            Image.network(
+              imageUrl,
 
-            errorBuilder: (
-              context,
-              error,
-              stackTrace,
-            ) {
-              return const Center(
-                child: Icon(
-                  Icons.broken_image,
-                  size: 50,
-                ),
-              );
-            },
-          )
-        else
-          const Center(
-            child: Icon(
-              Icons.image_not_supported,
-              size: 50,
-            ),
-          ),
+              fit: BoxFit.cover,
 
-        // Dark overlay so text is easier to read.
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.transparent,
-                Colors.black.withOpacity(0.75),
-              ],
-            ),
-          ),
-        ),
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) {
+                  return child;
+                }
 
-        _buildBannerContent(),
-      ],
+                return const Center(child: CircularProgressIndicator());
+              },
+
+              errorBuilder: (context, error, stackTrace) {
+                return _buildImageError();
+              },
+            )
+          else
+            _buildImageError(),
+
+          _buildGradient(),
+
+          _buildBannerContent(),
+        ],
+      ),
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // VIDEO BANNER
-  // ---------------------------------------------------------------------------
 
   Widget _buildVideoCard() {
     final videoController = _videoController;
 
-    // API currently doesn't provide a video URL.
-    if (widget.banner.videoFile == null ||
-        widget.banner.videoFile!.isEmpty) {
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          Container(
-            color: Colors.black,
-            child: const Center(
-              child: Icon(
-                Icons.video_library_outlined,
-                color: Colors.white,
-                size: 60,
+    final videoUrl = widget.banner.videoFile;
+
+    if (videoUrl == null || videoUrl.isEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+
+        child: Stack(
+          fit: StackFit.expand,
+
+          children: [
+            Container(
+              color: Colors.black,
+              child: const Center(
+                child: Icon(
+                  Icons.video_library_outlined,
+                  color: Colors.white,
+                  size: 60,
+                ),
               ),
             ),
+
+            _buildGradient(),
+
+            _buildBannerContent(),
+          ],
+        ),
+      );
+    }
+
+    if (_videoError) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+
+        child: Stack(
+          fit: StackFit.expand,
+
+          children: [
+            Container(
+              color: Colors.black,
+
+              child: const Center(
+                child: Icon(Icons.error_outline, color: Colors.white, size: 55),
+              ),
+            ),
+
+            _buildGradient(),
+
+            _buildBannerContent(),
+          ],
+        ),
+      );
+    }
+
+    if (videoController == null || !videoController.value.isInitialized) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+
+        child: Container(
+          color: Colors.black,
+
+          child: const Center(
+            child: CircularProgressIndicator(color: Colors.white),
           ),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+
+      child: Stack(
+        fit: StackFit.expand,
+
+        children: [
+          FittedBox(
+            fit: BoxFit.cover,
+
+            child: SizedBox(
+              width: videoController.value.size.width,
+
+              height: videoController.value.size.height,
+
+              child: VideoPlayer(videoController),
+            ),
+          ),
+
+          _buildGradient(),
 
           _buildBannerContent(),
         ],
-      );
-    }
-
-    // Video is still loading.
-    if (videoController == null ||
-        !videoController.value.isInitialized) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // Video
-        FittedBox(
-          fit: BoxFit.cover,
-          child: SizedBox(
-            width: videoController.value.size.width,
-            height: videoController.value.size.height,
-            child: VideoPlayer(videoController),
-          ),
-        ),
-
-        // Dark overlay.
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.transparent,
-                Colors.black.withOpacity(0.75),
-              ],
-            ),
-          ),
-        ),
-
-        _buildBannerContent(),
-      ],
+      ),
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // TEXT + BUTTON
-  // ---------------------------------------------------------------------------
+  Widget _buildGradient() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+
+          colors: [Colors.transparent, Colors.black.withOpacity(0.80)],
+        ),
+      ),
+    );
+  }
 
   Widget _buildBannerContent() {
     final title = widget.banner.title;
+
     final description = widget.banner.description;
+
     final buttonLabel = widget.banner.buttonLabel;
 
     return Padding(
       padding: const EdgeInsets.all(24),
+
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
+
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
-          if (title != null && title.isNotEmpty)
+          if (title.isNotEmpty)
             Text(
               title,
+
+              maxLines: 2,
+
+              overflow: TextOverflow.ellipsis,
+
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 28,
@@ -271,28 +293,46 @@ class _CourseCardState extends State<CourseCard> {
               ),
             ),
 
-          if (description != null && description.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              description,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
+          if (description != null && description.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+
+              child: Text(
+                description,
+
+                maxLines: 3,
+
+                overflow: TextOverflow.ellipsis,
+
+                style: const TextStyle(color: Colors.white, fontSize: 15),
               ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
             ),
-          ],
 
-          if (buttonLabel != null && buttonLabel.isNotEmpty) ...[
-            const SizedBox(height: 16),
+          if (buttonLabel != null && buttonLabel.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
 
-            ElevatedButton(
-              onPressed: widget.onExplore,
-              child: Text(buttonLabel),
+              child: ElevatedButton(
+                onPressed: widget.onExplore,
+
+                child: Text(buttonLabel),
+              ),
             ),
-          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildImageError() {
+    return Container(
+      color: Colors.grey.shade200,
+
+      child: const Center(
+        child: Icon(
+          Icons.image_not_supported_outlined,
+          size: 55,
+          color: Colors.grey,
+        ),
       ),
     );
   }

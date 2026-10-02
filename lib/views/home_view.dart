@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../controllers/home_controller.dart';
-import '../widgets/home_header.dart';
+import '../models/banner_model.dart';
 import '../widgets/course_card.dart';
+import '../widgets/home_header.dart';
 import '../widgets/page_indicator.dart';
 
 class HomeView extends StatefulWidget {
@@ -22,25 +23,31 @@ class _HomeViewState extends State<HomeView> {
 
     controller = HomeController();
 
-    // Same viewport fraction as your original project.
-    pageController = PageController(viewportFraction: 0.88);
+    pageController = PageController(
+      viewportFraction: 0.88,
+    );
 
     controller.addListener(_onControllerChanged);
 
-    // Load banners from Laravel API.
     controller.loadBanners();
   }
 
+
   void _onControllerChanged() {
-    if (mounted) {
-      setState(() {});
+    if (!mounted) {
+      return;
     }
+
+    setState(() {});
   }
+
 
   @override
   void dispose() {
     controller.removeListener(_onControllerChanged);
+
     controller.dispose();
+
     pageController.dispose();
 
     super.dispose();
@@ -50,11 +57,13 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9F7F2),
+
       body: SafeArea(
         child: Column(
           children: [
-            // Existing user header.
-            HomeHeader(user: controller.user),
+            HomeHeader(
+              user: controller.user,
+            ),
 
             const SizedBox(height: 20),
 
@@ -62,7 +71,6 @@ class _HomeViewState extends State<HomeView> {
 
             const SizedBox(height: 25),
 
-            // Existing PageIndicator API.
             if (!controller.isLoading &&
                 controller.errorMessage == null &&
                 controller.banners.isNotEmpty)
@@ -76,70 +84,51 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+
   Widget _buildBannerSlider() {
-    // -------------------------------------------------------------------------
-    // LOADING
-    // -------------------------------------------------------------------------
+
 
     if (controller.isLoading) {
       return const SizedBox(
         height: 320,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    // -------------------------------------------------------------------------
-    // ERROR
-    // -------------------------------------------------------------------------
-
-    if (controller.errorMessage != null) {
-      return SizedBox(
-        height: 320,
         child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Text(controller.errorMessage!, textAlign: TextAlign.center),
-          ),
+          child: CircularProgressIndicator(),
         ),
       );
     }
 
-    // -------------------------------------------------------------------------
-    // NO BANNERS
-    // -------------------------------------------------------------------------
 
-    if (controller.banners.isEmpty) {
-      return const SizedBox(
-        height: 320,
-        child: Center(child: Text('No banners available')),
-      );
+    if (controller.errorMessage != null) {
+      return _buildErrorState();
     }
 
-    // -------------------------------------------------------------------------
-    // BANNER SLIDER
-    // -------------------------------------------------------------------------
+    if (controller.banners.isEmpty) {
+      return _buildEmptyState();
+    }
+
 
     return SizedBox(
       height: 320,
+
       child: PageView.builder(
         controller: pageController,
 
-        // Number of API banners.
+        // Manual swipe only.
         itemCount: controller.banners.length,
 
-        // Manual swipe only.
         onPageChanged: (index) {
           controller.changePage(index);
         },
 
         itemBuilder: (context, index) {
-          final banner = controller.banners[index];
+          final BannerModel banner =
+              controller.banners[index];
 
           return CourseCard(
             banner: banner,
 
-            // Only the banner currently in front is active.
-            isActive: controller.currentPage == index,
+            isActive:
+                controller.currentPage == index,
 
             onExplore: () {
               _handleExplore(banner);
@@ -150,10 +139,120 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  void _handleExplore(dynamic banner) {
-    // We can connect button_navigation here later.
-    //
-    // For example:
-    // banner.buttonNavigation == 'login'
+  Widget _buildErrorState() {
+    return SizedBox(
+      height: 320,
+
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+
+            children: [
+              const Icon(
+                Icons.cloud_off,
+                size: 50,
+                color: Colors.grey,
+              ),
+
+              const SizedBox(height: 15),
+
+              const Text(
+                'Unable to load banners',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              Text(
+                _cleanErrorMessage(
+                  controller.errorMessage,
+                ),
+                textAlign: TextAlign.center,
+
+                style: const TextStyle(
+                  color: Colors.grey,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              ElevatedButton.icon(
+                onPressed: controller.retry,
+
+                icon: const Icon(
+                  Icons.refresh,
+                ),
+
+                label: const Text(
+                  'Retry',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildEmptyState() {
+    return const SizedBox(
+      height: 320,
+
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+
+          children: [
+            Icon(
+              Icons.image_not_supported_outlined,
+              size: 50,
+              color: Colors.grey,
+            ),
+
+            SizedBox(height: 12),
+
+            Text(
+              'No banners available',
+              style: TextStyle(
+                fontSize: 17,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _cleanErrorMessage(String? error) {
+    if (error == null || error.isEmpty) {
+      return 'Something went wrong. Please try again.';
+    }
+
+    return error.replaceFirst(
+      'Exception: ',
+      '',
+    );
+  }
+
+
+  void _handleExplore(BannerModel banner) {
+    final navigation = banner.buttonNavigation;
+
+    if (navigation == null || navigation.isEmpty) {
+      return;
+    }
+
+    debugPrint(
+      'Explore clicked: $navigation',
+    );
+
   }
 }
